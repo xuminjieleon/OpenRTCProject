@@ -1,55 +1,143 @@
---- ../getstats/index.html	2019-03-29 15:59:15.411543219 +0800
-+++ ./index.html	2019-03-30 10:52:09.110930653 +0800
-@@ -26,33 +26,39 @@
- 			</div>
+--- ../../getstats/js/main_bw.js	2019-03-29 15:58:41.558420158 +0800
++++ ./main_bw.js	2019-03-30 10:52:09.110930653 +0800
+@@ -8,6 +8,10 @@
  
+ var optBw = document.querySelector('select#bandwidth');
  
--			<div id="preview">
--				<div >
-+			<div class="preview">
-+				<div>
- 					<h2>Local:</h2>
- 					<video id="localvideo" autoplay playsinline muted></video>
--				</div>
--				<div>
++var chat = document.querySelector('textarea#chat');
++var send_txt = document.querySelector('textarea#sendtxt');
++var btnSend = document.querySelector('button#send');
 +
- 					<h2>Remote:</h2>
- 					<video id="remotevideo" autoplay playsinline></video>
- 				</div>
-+				<div>
-+					<h2>Chat:<h2>
-+					<textarea id="chat" disabled></textarea>
-+					<textarea id="sendtxt" disabled></textarea>
-+					<button id="send" disabled>Send</button>
-+				</div>
+ var bitrateGraph;
+ var bitrateSeries;
  
- 			</div>
+@@ -28,6 +32,7 @@
+ var remoteStream = null;
  
--			<div class="graph-container" id="bitrateGraph">
--				<div>Bitrate</div>
--				<canvas id="bitrateCanvas"></canvas>
--			</div>
--			<div class="graph-container" id="packetGraph">
--				<div>Packets sent per second</div>
--				<canvas id="packetCanvas"></canvas>
-+			<div class="preview">
-+				<div class="graph-container" id="bitrateGraph">
-+					<div>Bitrate</div>
-+					<canvas id="bitrateCanvas"></canvas>
-+				</div>
-+				<div class="graph-container" id="packetGraph">
-+					<div>Packets sent per second</div>
-+					<canvas id="packetCanvas"></canvas>
-+				</div>
- 			</div>
+ var pc = null;
++var dc = null;
  
- 		</div>
+ var roomid;
+ var socket = null;
+@@ -35,6 +40,8 @@
+ var offerdesc = null;
+ var state = 'init';
  
--		<script src="js/third_party/graph.js"></script>
--
- 		<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.3/socket.io.js"></script>
- 		<script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
- 		<script src="js/main_bw.js"></script>
-+		<script src="js/third_party/graph.js"></script>
- 	</body>
- </html>
++
++
+ function sendMessage(roomid, data){
+ 
+ 	console.log('send message to other end', roomid, data);
+@@ -44,6 +51,18 @@
+ 	socket.emit('message', roomid, data);
+ }
+ 
++function dataChannelStateChange() {
++  var readyState = dc.readyState;
++  console.log('Send channel state is: ' + readyState);
++  if (readyState === 'open') {
++    send_txt.disabled = false;
++    send.disabled = false;
++  } else {
++    send_txt.disabled = true;
++    send.disabled = true;
++  }
++}
++
+ function conn(){
+ 
+ 	socket = io.connect();
+@@ -62,6 +81,7 @@
+ 
+ 		btnConn.disabled = true;
+ 		btnLeave.disabled = false;
++
+ 		console.log('receive joined message, state=', state);
+ 	});
+ 
+@@ -75,6 +95,12 @@
+ 			bindTracks();
+ 		}
+ 
++		//create data channel for transporting non-audio/video data
++		dc = pc.createDataChannel('chatchannel');
++		dc.onmessage = receivemsg;
++		dc.onopen = dataChannelStateChange;
++		dc.onclose = dataChannelStateChange;
++
+ 		state = 'joined_conn';
+ 		call();
+ 
+@@ -278,6 +304,16 @@
+ 
+ }
+ 
++function receivemsg(e){
++	var msg = e.data;
++	if(msg){
++		console.log(msg);
++		chat.value += "->" + msg + "\r\n";
++	}else{
++		console.error('received msg is null');
++	}
++}
++
+ function createPeerConnection(){
+ 
+ 	//如果是多人的话，在这里要创建一个新的连接.
+@@ -301,6 +337,16 @@
+ 			}
+ 		}
+ 
++		pc.ondatachannel = e=> {
++			if(!dc){
++				dc = e.channel;
++				dc.onmessage = receivemsg; 
++				dc.onopen = dataChannelStateChange;
++				dc.onclose = dataChannelStateChange;
++			}
++
++		}
++
+ 		pc.ontrack = getRemoteStream;
+ 	}else {
+ 		console.log('the pc have be created!');
+@@ -374,12 +420,18 @@
+ 
+ 	socket.emit('leave', roomid); //notify server
+ 
++	dc.close();
++	dc = null;
++
+ 	hangup();
+ 	closeLocalMedia();
+ 
+ 	btnConn.disabled = false;
+ 	btnLeave.disabled = true;
+ 	optBw.disabled = true;
++
++	send_txt.disabled = true;
++	send.disabled = true;
+ }
+ 
+ function chang_bw()
+@@ -459,6 +511,19 @@
+   });
+ }, 1000);
+ 
++function sendText(){
++	var data = send_txt.value;
++	if(data != null){
++		dc.send(data);
++	}
++
++	//更好的展示
++	send_txt.value = "";
++	chat.value += '<- ' + data + '\r\n';
++}
++
+ btnConn.onclick = connSignalServer
+ btnLeave.onclick = leave;
+ optBw.onchange = chang_bw;
++
++btnSend.onclick = sendText;
