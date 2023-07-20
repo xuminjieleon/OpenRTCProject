@@ -8,10 +8,10 @@ var express = require('express');
 var USERCOUNT = 3;
 
 var app = express();
-app.use(express.static('./p2p/server/client'));
+app.use(express.static(__dirname + '/client'));
 
 app.get("/", (req, res) => {
-    res.redirect(`./p2p/server/client/index.html`);
+    res.redirect(__dirname + `/client/index.html`);
   });
 
 //http server

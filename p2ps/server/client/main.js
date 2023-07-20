@@ -37,7 +37,7 @@ startButton.addEventListener('click', async () => {
   localVideo.srcObject = localStream;
 
   // 连接信令服务器
-  socket = io.connect(serverUrl.value);
+  socket = io(serverUrl.value);
 
   // 处理加入房间事件
   socket.on('joined', (room, id, otherClientIds) => {

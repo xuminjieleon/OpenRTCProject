@@ -12,6 +12,10 @@ const PORT = process.env.HTTPS === 'true' ? 443:80;
 
 app.use(express.static(__dirname + '/client'));
 
+app.get("/", (req, res) => {
+  res.redirect(__dirname + `/client/index.html`);
+});
+
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
 
@@ -20,11 +24,11 @@ socket.on('join', (room) => {
     socket.join(room);
     console.log(`Socket ID ${socket.id} joined room ${room}`);
   
-    const clientsInRoom = io.sockets.adapter.rooms[room];
-    const clientsCount = Object.keys(clientsInRoom.sockets).length;
+    const clientsInRoom = io.sockets.adapter.rooms.get(room);
+    const clientsCount = clientsInRoom.size;
   
     // 获取房间中的所有客户端 ID，除了当前加入的客户端
-    const otherClientIds = Object.keys(clientsInRoom.sockets).filter(id => id !== socket.id);
+    const otherClientIds = Array.from(clientsInRoom).filter(id => id !== socket.id);
   
     // 发送包含所有其他客户端 ID 的 join 消息给新加入的客户端
     socket.emit('joined',  room, socket.id, otherClientIds );
@@ -39,8 +43,8 @@ socket.on('join', (room) => {
   // 发送消息到指定的房间和 socket.id
   socket.on('message', ( room, id, msg ) => {
     const sender = socket.id;
-    const clientsInRoom = io.sockets.adapter.rooms[room];
-    if (clientsInRoom && clientsInRoom.sockets.hasOwnProperty(id)) {
+    const clientsInRoom = io.sockets.adapter.rooms.get(room);
+    if (clientsInRoom && clientsInRoom.has(id)) {
       socket.to(id).emit('message', sender, id, msg);
     } else {
       console.log(`Socket ID ${id} is not in room ${room}`);
