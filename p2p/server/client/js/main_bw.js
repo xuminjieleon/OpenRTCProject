@@ -65,7 +65,7 @@ function dataChannelStateChange() {
 
 function conn(){
 
-	socket = io.connect();
+	socket = io();
 
 	socket.on('joined', (roomid, id) => {
 		console.log('receive joined message!', roomid, id);
