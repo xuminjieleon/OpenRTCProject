@@ -72,16 +72,16 @@ startButton.addEventListener('click', async () => {
     const peer = peers[sender];
 
     if (message.type == 'offer') {
-        peer.setRemoteDescription(new RTCSessionDescription({type:message.type,sdp:message.sdp}))
+        peer.setRemoteDescription(new RTCSessionDescription(message))
         .then(() => {
             peer.createAnswer()
-              .then(answer => peer.setLocalDescription(answer))
-              .then(() => {
-                socket.emit('message', roomInput.value, sender, { type:'answer',sdp: peer.localDescription.sdp });
+              .then(answer => {
+                peer.setLocalDescription(answer);
+                socket.emit('message', roomInput.value, sender, answer);
               });
         });
     }else if(message.type == 'answer'){
-        peer.setRemoteDescription(new RTCSessionDescription({type:message.type,sdp:message.sdp}))
+        peer.setRemoteDescription(new RTCSessionDescription(message))
         .then(() => {
 
         });
@@ -167,11 +167,10 @@ function createPeerConnection(room, localId, remoteId,createOffer) {
     // 创建并发送 Offer
     if (createOffer) {
       peer.createOffer()
-        .then(offer => peer.setLocalDescription(offer))
-        .then(() => {
-            var data = { type:'offer',sdp: peer.localDescription.sdp };
-            console.log('send local sdp to：'+remoteId +' data:'+JSON.stringify(data))
-          socket.emit('message', room, remoteId, data);
+        .then(offer => {
+          peer.setLocalDescription(offer);          
+          console.log('send local sdp to：'+remoteId +' data:'+JSON.stringify(offer));
+          socket.emit('message', room, remoteId, offer);
         });
     }
   
